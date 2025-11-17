@@ -1,0 +1,2305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Luma's Quest - Puzzle Game</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #0a0a1e;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // START SCREEN
+        class StartScreen extends Phaser.Scene {
+            constructor() {
+                super({ key: 'StartScreen' });
+            }
+
+            preload() {
+                this.load.setBaseURL('./');
+                this.load.image('luma', 'assets/luma.png');
+            }
+
+            create() {
+                // Background
+                let bg = this.add.graphics();
+                bg.fillGradientStyle(0x0a0a1e, 0x0a0a1e, 0x1a1a3e, 0x2a2a4e, 1);
+                bg.fillRect(0, 0, 800, 600);
+
+                // Stars
+                for (let i = 0; i < 100; i++) {
+                    let x = Phaser.Math.Between(0, 800);
+                    let y = Phaser.Math.Between(0, 600);
+                    this.add.circle(x, y, Phaser.Math.Between(1, 3), 0xffffff, 0.6);
+                }
+
+                // Large Luma
+                let luma = this.add.sprite(400, 250, 'luma');
+                luma.setScale(0.8);
+                
+                // Pulsing animation
+                this.tweens.add({
+                    targets: luma,
+                    alpha: { from: 0.8, to: 1 },
+                    scale: { from: 0.75, to: 0.85 },
+                    duration: 1500,
+                    yoyo: true,
+                    repeat: -1
+                });
+
+                // Title
+                let title = this.add.text(400, 400, "LUMA'S QUEST", {
+                    fontSize: '64px',
+                    fill: '#ffff00',
+                    fontStyle: 'bold',
+                    stroke: '#ff8800',
+                    strokeThickness: 4
+                }).setOrigin(0.5);
+
+                // Start button
+                let startBtn = this.add.text(400, 500, 'START', {
+                    fontSize: '36px',
+                    fill: '#ffffff',
+                    backgroundColor: '#4a5c8c',
+                    padding: { x: 40, y: 15 }
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+                startBtn.on('pointerover', () => startBtn.setStyle({ fill: '#ffff00' }));
+                startBtn.on('pointerout', () => startBtn.setStyle({ fill: '#ffffff' }));
+                startBtn.on('pointerdown', () => this.scene.start('Cutscene'));
+            }
+        }
+
+        // CUTSCENE
+        class Cutscene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'Cutscene' });
+            }
+
+            preload() {
+                this.load.setBaseURL('./');
+                // Only load video if it's not already in cache
+                if (!this.cache.video.exists('cutscene')) {
+                    console.log('Loading initial cutscene video...');
+                    this.load.video('cutscene', 'assets/Luma_cutscene.mp4');
+                } else {
+                    console.log('Initial cutscene video already in cache');
+                }
+            }
+
+            create() {
+                this.add.rectangle(400, 300, 800, 600, 0x000000);
+
+                let video = this.add.video(400, 300, 'cutscene');
+                video.play(true);
+
+                let skipText = this.add.text(700, 550, 'Press SPACE to skip', {
+                    fontSize: '18px',
+                    fill: '#ffffff',
+                    stroke: '#000',
+                    strokeThickness: 3
+                });
+
+                video.on('complete', () => this.scene.start('Intro'));
+                
+                this.input.keyboard.once('keydown-SPACE', () => {
+                    video.stop();
+                    this.scene.start('Intro');
+                });
+
+                // Auto-skip if video fails
+                this.time.delayedCall(10000, () => {
+                    if (this.scene.isActive('Cutscene')) {
+                        this.scene.start('Intro');
+                    }
+                });
+            }
+        }
+
+        // INTRO TEXT
+        class Intro extends Phaser.Scene {
+            constructor() {
+                super({ key: 'Intro' });
+            }
+
+            create() {
+                let bg = this.add.graphics();
+                bg.fillGradientStyle(0x0a0a1e, 0x0a0a1e, 0x1a1a3e, 0x2a2a4e, 1);
+                bg.fillRect(0, 0, 800, 600);
+
+                // Sparkles
+                for (let i = 0; i < 30; i++) {
+                    let x = Phaser.Math.Between(100, 700);
+                    let y = Phaser.Math.Between(100, 500);
+                    let star = this.add.circle(x, y, 2, 0xffffff, 0);
+                    this.tweens.add({
+                        targets: star,
+                        alpha: { from: 0, to: 1 },
+                        duration: Phaser.Math.Between(500, 1500),
+                        yoyo: true,
+                        repeat: -1
+                    });
+                }
+
+                let text = this.add.text(400, 300, "Luma's Day One", {
+                    fontSize: '56px',
+                    fill: '#ffff00',
+                    fontStyle: 'bold',
+                    stroke: '#ff8800',
+                    strokeThickness: 4
+                }).setOrigin(0.5).setAlpha(0).setScale(0.5);
+
+                // Animated entrance - zoom and fade in
+                this.tweens.add({
+                    targets: text,
+                    alpha: 1,
+                    scale: 1,
+                    duration: 1000,
+                    ease: 'Back.easeOut'
+                });
+
+                // Pulse effect
+                this.tweens.add({
+                    targets: text,
+                    scale: { from: 1, to: 1.05 },
+                    duration: 800,
+                    yoyo: true,
+                    repeat: 1,
+                    delay: 1000
+                });
+
+                // Fade out and start game
+                this.time.delayedCall(2500, () => {
+                    this.tweens.add({
+                        targets: text,
+                        alpha: 0,
+                        scale: 1.2,
+                        duration: 800,
+                        ease: 'Power2',
+                        onComplete: () => this.scene.start('PuzzleGame')
+                    });
+                });
+            }
+        }
+
+        // MAIN GAME
+        class PuzzleGame extends Phaser.Scene {
+            constructor() {
+                super({ key: 'PuzzleGame' });
+            }
+            preload() {
+                this.load.setBaseURL('./');
+                this.load.image('luma', 'assets/luma.png');
+                this.load.image('fragment', 'assets/fragment.png');
+                this.load.image('pedestal_off', 'assets/pedestal_off.png');
+                this.load.image('pedestal_on', 'assets/pedestal_on.png');
+                this.load.image('wall', 'assets/tiles_wall.jpg');
+                this.load.image('obstacle', 'assets/obstacle.png');
+                this.load.image('corner', 'assets/corner.png');
+                
+                // Load background music
+                this.load.audio('bgMusic', 'assets/music.mp3');
+            }
+
+            create() {
+                // Start background music (looping)
+                this.bgMusic = this.sound.add('bgMusic', { loop: true, volume: 0.5 });
+                this.bgMusic.play();
+                
+                // Dark blue background
+                this.add.rectangle(400, 300, 800, 600, 0x1a1a3e);
+
+                // Add floor tiles using tiles_wall.png
+                for (let y = 0; y < 10; y++) {
+                    for (let x = 0; x < 13; x++) {
+                        let floor = this.add.image(x * 64 + 32, y * 64 + 32, 'wall');
+                        floor.setAlpha(0.25);
+                        floor.setTint(0x5a5a7e);
+                    }
+                }
+
+                // Create simple room with clear walls
+                this.walls = this.physics.add.staticGroup();
+                
+                // All borders using corner.png
+                
+                // Top wall
+                for (let x = 0; x < 13; x++) {
+                    this.walls.create(x * 64 + 32, 32, 'corner');
+                }
+                
+                // Bottom wall
+                for (let x = 0; x < 13; x++) {
+                    this.walls.create(x * 64 + 32, 568, 'corner');
+                }
+                
+                // Left wall
+                for (let y = 1; y < 9; y++) {
+                    this.walls.create(32, y * 64 + 32, 'corner');
+                }
+                
+                // Right wall
+                for (let y = 1; y < 9; y++) {
+                    this.walls.create(768, y * 64 + 32, 'corner');
+                }
+
+                // Simple interior obstacles - using obstacle.png
+                this.walls.create(300, 200, 'obstacle');
+                this.walls.create(300, 264, 'obstacle');
+                this.walls.create(500, 350, 'obstacle');
+                this.walls.create(500, 414, 'obstacle');
+                
+                // Add more decorative obstacles
+                this.walls.create(200, 400, 'obstacle');
+                this.walls.create(600, 150, 'obstacle');
+
+                // Player - Luma (128x120 original)
+                this.player = this.physics.add.sprite(150, 150, 'luma');
+                this.player.setScale(0.3);
+                // Make Luma's collection area bigger too
+                this.player.body.setSize(50, 50);
+                this.player.body.setOffset((128-50)/2, (120-50)/2);
+                this.player.setCollideWorldBounds(true);
+
+                // Collisions
+                this.physics.add.collider(this.player, this.walls);
+
+                // 3 Fragments - easy to reach (128x118 original)
+                this.fragments = this.physics.add.group();
+                let f1 = this.fragments.create(400, 150, 'fragment').setScale(0.25);
+                let f2 = this.fragments.create(600, 300, 'fragment').setScale(0.25);
+                let f3 = this.fragments.create(350, 450, 'fragment').setScale(0.25);
+                
+                // Make collection area MUCH bigger - easier to collect
+                [f1, f2, f3].forEach(f => {
+                    f.body.setSize(60, 60);
+                    f.body.setOffset((128-60)/2, (118-60)/2);
+                    
+                    // Floating animation
+                    this.tweens.add({
+                        targets: f,
+                        y: f.y - 10,
+                        duration: 1500,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                    
+                    // Rotation animation
+                    this.tweens.add({
+                        targets: f,
+                        angle: 360,
+                        duration: 3000,
+                        repeat: -1,
+                        ease: 'Linear'
+                    });
+                });
+
+                this.fragmentsCollected = 0;
+
+                this.physics.add.overlap(this.player, this.fragments, (p, f) => {
+                    // Play sparkle sound effect
+                    this.playSparkleSound();
+                    
+                    f.destroy();
+                    this.fragmentsCollected++;
+                    this.ui.setText(`Fragments: ${this.fragmentsCollected}/3`);
+                });
+
+                // Pedestal (128x79 original)
+                this.pedestal = this.physics.add.sprite(700, 150, 'pedestal_off');
+                this.pedestal.setScale(0.5);
+                this.pedestal.setDepth(10);
+                // Make pedestal collision area bigger for easier activation
+                this.pedestal.body.setSize(90, 70);
+                this.pedestal.body.setOffset((128-90)/2, (79-70)/2);
+                this.pedestal.body.setImmovable(true);
+                this.activated = false;
+                this.levelComplete = false;
+                
+                // Add glow around pedestal
+                this.pedestalGlow = this.add.circle(700, 150, 50, 0x4a5c8c, 0.3);
+                this.pedestalGlow.setDepth(5);
+
+                // UI
+                this.ui = this.add.text(20, 20, 'Fragments: 0/3', {
+                    fontSize: '28px',
+                    fill: '#ffff00',
+                    stroke: '#000',
+                    strokeThickness: 4
+                });
+
+                this.add.text(20, 55, 'Arrow Keys to Move', {
+                    fontSize: '18px',
+                    fill: '#ffffff'
+                });
+
+                this.winText = this.add.text(400, 300, 'Level Complete!', {
+                    fontSize: '52px',
+                    fill: '#00ff00',
+                    fontStyle: 'bold',
+                    stroke: '#000',
+                    strokeThickness: 6
+                }).setOrigin(0.5).setVisible(false).setScale(0);
+
+                // Controls
+                this.keys = this.input.keyboard.createCursorKeys();
+            }
+
+            update() {
+                // Simple movement
+                let speed = 200;
+                this.player.setVelocity(0);
+
+                if (this.keys.left.isDown) {
+                    this.player.setVelocityX(-speed);
+                } else if (this.keys.right.isDown) {
+                    this.player.setVelocityX(speed);
+                }
+
+                if (this.keys.up.isDown) {
+                    this.player.setVelocityY(-speed);
+                } else if (this.keys.down.isDown) {
+                    this.player.setVelocityY(speed);
+                }
+
+                // Animate pedestal glow
+                if (this.pedestalGlow) {
+                    let pulse = Math.sin(this.time.now * 0.002) * 0.15 + 0.3;
+                    this.pedestalGlow.setAlpha(pulse);
+                }
+                
+                // Activate pedestal
+                if (this.fragmentsCollected === 3 && !this.activated) {
+                    this.pedestal.setTexture('pedestal_on');
+                    this.activated = true;
+                    // Change glow to golden
+                    this.pedestalGlow.setFillStyle(0xffaa00);
+                    this.pedestalGlow.setScale(1.3);
+                }
+                
+                // Check if player touches activated pedestal
+                if (this.activated && !this.levelComplete) {
+                    let dist = Phaser.Math.Distance.Between(
+                        this.player.x, this.player.y, 
+                        this.pedestal.x, this.pedestal.y
+                    );
+                    
+                    // Debug: Show distance in console
+                    if (Math.floor(this.time.now / 1000) % 2 === 0 && !this.debugLogged) {
+                        console.log('Distance to pedestal:', dist, 'Activated:', this.activated);
+                        this.debugLogged = true;
+                    } else if (Math.floor(this.time.now / 1000) % 2 === 1) {
+                        this.debugLogged = false;
+                    }
+                    
+                    if (dist < 100) {
+                        console.log('LEVEL COMPLETE TRIGGERED!');
+                        this.levelComplete = true;
+                        this.winText.setVisible(true);
+                        
+                        // Stop player movement
+                        this.player.setVelocity(0);
+                        
+                        // Animated victory text
+                        this.tweens.add({
+                            targets: this.winText,
+                            scale: { from: 0, to: 1.2 },
+                            duration: 500,
+                            ease: 'Back.easeOut'
+                        });
+                        this.tweens.add({
+                            targets: this.winText,
+                            scale: { from: 1.2, to: 1 },
+                            duration: 300,
+                            delay: 500,
+                            yoyo: true,
+                            repeat: -1
+                        });
+                        
+                        // Create simple star particles using graphics instead
+                        for (let i = 0; i < 20; i++) {
+                            this.time.delayedCall(i * 100, () => {
+                                let x = 400 + Phaser.Math.Between(-100, 100);
+                                let y = 300 + Phaser.Math.Between(-100, 100);
+                                let star = this.add.circle(x, y, 3, 0xffff00);
+                                star.setDepth(250);
+                                
+                                this.tweens.add({
+                                    targets: star,
+                                    y: y - 50,
+                                    alpha: 0,
+                                    scale: 0,
+                                    duration: 1000,
+                                    ease: 'Power2',
+                                    onComplete: () => star.destroy()
+                                });
+                            });
+                        }
+                        
+                        // Transition to Level 2 after 3 seconds
+                        console.log('Setting up transition timer...');
+                        this.time.delayedCall(3000, () => {
+                            console.log('Starting LevelTransition scene!');
+                            // Stop all tweens before transitioning
+                            this.tweens.killAll();
+                            this.scene.start('LevelTransition');
+                        });
+                    }
+                }
+            }
+            
+            playSparkleSound() {
+                // Create a simple sparkle sound using Web Audio API
+                const audioContext = this.sound.context;
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // Sparkle effect: quick ascending notes
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1600, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.2);
+            }
+            
+            shutdown() {
+                // Clean up when scene ends
+                if (this.bgMusic) {
+                    this.bgMusic.stop();
+                }
+            }
+        }
+
+        // LEVEL TRANSITION - Cutscene before Level 2
+        class LevelTransition extends Phaser.Scene {
+            constructor() {
+                super({ key: 'LevelTransition' });
+                this.hasTransitioned = false;
+            }
+
+            preload() {
+                console.log('LevelTransition preload started');
+                this.load.setBaseURL('./');
+                // Only load video if it's not already in cache
+                if (!this.cache.video.exists('cutscene1')) {
+                    console.log('Loading cutscene1 video...');
+                    this.load.video('cutscene1', 'assets/Luma_cutscene1.mp4');
+                } else {
+                    console.log('cutscene1 video already in cache');
+                }
+            }
+
+            create() {
+                console.log('LevelTransition create started');
+                this.hasTransitioned = false;
+                
+                this.add.rectangle(400, 300, 800, 600, 0x000000);
+
+                // Add transition text
+                let transitionText = this.add.text(400, 300, 'Level 1 Complete!\n\nPreparing Level 2...', {
+                    fontSize: '36px',
+                    fill: '#ffff00',
+                    fontStyle: 'bold',
+                    stroke: '#000',
+                    strokeThickness: 4,
+                    align: 'center'
+                }).setOrigin(0.5);
+
+                // Try to play video if it loaded
+                if (this.cache.video.exists('cutscene1')) {
+                    console.log('Video exists, playing...');
+                    transitionText.setVisible(false);
+                    let video = this.add.video(400, 300, 'cutscene1');
+                    video.play(true);
+
+                    let skipText = this.add.text(700, 550, 'Press SPACE to skip', {
+                        fontSize: '18px',
+                        fill: '#ffffff',
+                        stroke: '#000',
+                        strokeThickness: 3
+                    });
+
+                    video.on('complete', () => {
+                        console.log('Video complete');
+                        this.showLevel2Intro();
+                    });
+                    
+                    this.input.keyboard.once('keydown-SPACE', () => {
+                        video.stop();
+                        this.showLevel2Intro();
+                    });
+
+                    this.time.delayedCall(10000, () => {
+                        if (this.scene.isActive('LevelTransition') && !this.hasTransitioned) {
+                            this.showLevel2Intro();
+                        }
+                    });
+                } else {
+                    console.log('Video not found, skipping to Level 2 intro');
+                    // No video, just show text and transition
+                    this.time.delayedCall(2000, () => {
+                        this.showLevel2Intro();
+                    });
+                }
+            }
+
+            showLevel2Intro() {
+                if (this.hasTransitioned) {
+                    console.log('Already transitioned, skipping');
+                    return;
+                }
+                
+                this.hasTransitioned = true;
+                console.log('Transitioning directly to Level2 (skipping intro)');
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                
+                this.time.delayedCall(500, () => {
+                    this.scene.start('Level2');
+                });
+            }
+            
+            shutdown() {
+                // Clean up when scene ends
+                this.hasTransitioned = false;
+            }
+        }
+
+        // LEVEL 2 INTRO TEXT
+        class Level2Intro extends Phaser.Scene {
+            constructor() {
+                super({ key: 'Level2Intro' });
+            }
+
+            create() {
+                console.log('Level2Intro create started');
+                
+                let bg = this.add.graphics();
+                bg.fillGradientStyle(0x0a0a1e, 0x0a0a1e, 0x1a1a3e, 0x2a2a4e, 1);
+                bg.fillRect(0, 0, 800, 600);
+
+                let text = this.add.text(400, 300, "The Crystal Labyrinth", {
+                    fontSize: '56px',
+                    fill: '#00ffff',
+                    fontStyle: 'bold',
+                    stroke: '#0088ff',
+                    strokeThickness: 4
+                }).setOrigin(0.5);
+
+                // Simple fade in
+                text.setAlpha(0);
+                this.tweens.add({
+                    targets: text,
+                    alpha: 1,
+                    duration: 1000
+                });
+
+                // Start Level 2 after delay - no fade out animation
+                this.time.delayedCall(2000, () => {
+                    console.log('Starting Level2 from Level2Intro');
+                    this.scene.start('Level2');
+                });
+            }
+        }
+
+        // ROTATING BRIDGE CLASS
+        class RotatingBridge {
+            constructor(scene, x, y, linkedPlateId) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.linkedPlateId = linkedPlateId;
+                this.rotation = 0; // 0, 90, 180, 270 degrees
+                this.isRotating = false;
+                
+                // Create bridge sprite with crystal platform appearance
+                this.sprite = scene.add.rectangle(x, y, 128, 32, 0x4488ff, 0.8);
+                this.sprite.setStrokeStyle(3, 0x00ffff, 1);
+                this.sprite.setDepth(8);
+                
+                // Add visual glow effects
+                this.glow = scene.add.circle(x, y, 70, 0x4488ff, 0.2);
+                this.glow.setDepth(7);
+                
+                // Pulsing glow animation
+                scene.tweens.add({
+                    targets: this.glow,
+                    alpha: { from: 0.15, to: 0.3 },
+                    duration: 1500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+                
+                // Add physics body with proper collision
+                scene.physics.add.existing(this.sprite, true);
+                this.sprite.body.setSize(128, 32);
+            }
+            
+            rotate() {
+                if (this.isRotating) return;
+                
+                this.isRotating = true;
+                const newRotation = (this.rotation + 90) % 360;
+                
+                // Smooth rotation animation over 1 second using tweens
+                this.scene.tweens.add({
+                    targets: [this.sprite, this.glow],
+                    angle: newRotation,
+                    duration: 1000,
+                    ease: 'Power2.easeInOut',
+                    onComplete: () => {
+                        this.rotation = newRotation;
+                        this.isRotating = false;
+                        
+                        // Update physics body dimensions and position after rotation
+                        // Swap width and height for 90 and 270 degree rotations
+                        if (this.rotation === 90 || this.rotation === 270) {
+                            this.sprite.body.setSize(32, 128);
+                        } else {
+                            this.sprite.body.setSize(128, 32);
+                        }
+                        this.sprite.body.updateFromGameObject();
+                    }
+                });
+            }
+            
+            getSprite() {
+                return this.sprite;
+            }
+        }
+
+        // BRIDGE PRESSURE PLATE CLASS
+        class BridgePressurePlate {
+            constructor(scene, x, y, linkedBridgeId) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.linkedBridgeId = linkedBridgeId;
+                this.isPressed = false;
+                this.linkedBridge = null;
+                
+                // Render pressure plate as distinct visual element
+                this.sprite = scene.add.circle(x, y, 20, 0xff8800, 0.7);
+                this.sprite.setStrokeStyle(2, 0xffff00, 1);
+                this.sprite.setDepth(6);
+                
+                // Inner indicator
+                this.indicator = scene.add.circle(x, y, 10, 0xffff00, 0.5);
+                this.indicator.setDepth(6);
+                
+                // Pulsing animation
+                scene.tweens.add({
+                    targets: this.indicator,
+                    scale: { from: 0.8, to: 1.2 },
+                    alpha: { from: 0.4, to: 0.7 },
+                    duration: 800,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+            
+            linkBridge(bridge) {
+                this.linkedBridge = bridge;
+            }
+            
+            update(player) {
+                // Implement player detection using distance calculation
+                const dist = Phaser.Math.Distance.Between(
+                    player.x, player.y,
+                    this.x, this.y
+                );
+                
+                // Activate when player is within 40 pixels
+                if (dist < 40 && !this.isPressed) {
+                    this.activate();
+                } else if (dist >= 40 && this.isPressed) {
+                    this.deactivate();
+                }
+            }
+            
+            activate() {
+                this.isPressed = true;
+                this.sprite.setFillStyle(0xffff00, 0.9);
+                this.indicator.setFillStyle(0xff8800, 0.8);
+                
+                // Trigger linked bridge rotation
+                if (this.linkedBridge) {
+                    this.linkedBridge.rotate();
+                }
+            }
+            
+            deactivate() {
+                this.isPressed = false;
+                this.sprite.setFillStyle(0xff8800, 0.7);
+                this.indicator.setFillStyle(0xffff00, 0.5);
+            }
+        }
+
+        // LIGHT BEAM SOURCE CLASS
+        class LightSource {
+            constructor(scene, x, y, direction) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.direction = direction; // 'up', 'down', 'left', 'right'
+                
+                // Create light source sprite - larger and brighter
+                this.sprite = scene.add.circle(x, y, 20, 0xffff00, 1);
+                this.sprite.setStrokeStyle(4, 0xffaa00, 1);
+                this.sprite.setDepth(50);
+                
+                // Outer glow - larger
+                this.glow = scene.add.circle(x, y, 40, 0xffff00, 0.5);
+                this.glow.setDepth(49);
+                
+                // Pulsing animation
+                scene.tweens.add({
+                    targets: [this.glow],
+                    alpha: { from: 0.4, to: 0.7 },
+                    scale: { from: 1, to: 1.3 },
+                    duration: 1000,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+                
+                // Create the light beam
+                this.beam = new LightBeam(scene, x, y, direction);
+            }
+            
+            update(reflectors, doorMechanisms) {
+                // Update beam with current reflectors and door mechanisms
+                this.beam.update(reflectors, doorMechanisms);
+            }
+            
+            getBeam() {
+                return this.beam;
+            }
+        }
+
+        // LIGHT BEAM CLASS
+        class LightBeam {
+            constructor(scene, startX, startY, direction) {
+                this.scene = scene;
+                this.startX = startX;
+                this.startY = startY;
+                this.direction = direction; // 'up', 'down', 'left', 'right'
+                this.maxLength = 600;
+                this.maxReflections = 3;
+                
+                // Create graphics for rendering beam
+                this.graphics = scene.add.graphics();
+                this.graphics.setDepth(7);
+                
+                // Glow graphics (rendered behind main beam)
+                this.glowGraphics = scene.add.graphics();
+                this.glowGraphics.setDepth(6);
+            }
+            
+            update(reflectors, doorMechanisms) {
+                // Clear previous rendering
+                this.graphics.clear();
+                this.glowGraphics.clear();
+                
+                // Cast ray and calculate beam path
+                const segments = this.castRay(reflectors);
+                
+                // Render the beam
+                this.render(segments);
+                
+                // Check for door mechanism hits
+                if (doorMechanisms) {
+                    this.checkDoorMechanismHits(segments, doorMechanisms);
+                }
+            }
+            
+            castRay(reflectors) {
+                const segments = [];
+                let currentX = this.startX;
+                let currentY = this.startY;
+                let currentDir = this.direction;
+                let remainingLength = this.maxLength;
+                let reflectionCount = 0;
+                
+                while (remainingLength > 0 && reflectionCount <= this.maxReflections) {
+                    // Calculate direction vector
+                    const dirVector = this.getDirectionVector(currentDir);
+                    
+                    // Find next collision point
+                    const collision = this.findNextCollision(
+                        currentX, currentY, dirVector, remainingLength, reflectors
+                    );
+                    
+                    if (collision) {
+                        // Add segment to collision point
+                        segments.push({
+                            startX: currentX,
+                            startY: currentY,
+                            endX: collision.x,
+                            endY: collision.y
+                        });
+                        
+                        if (collision.reflector && reflectionCount < this.maxReflections) {
+                            // Reflect the beam
+                            currentX = collision.x;
+                            currentY = collision.y;
+                            currentDir = this.calculateReflection(currentDir, collision.reflector);
+                            
+                            const segmentLength = Phaser.Math.Distance.Between(
+                                segments[segments.length - 1].startX,
+                                segments[segments.length - 1].startY,
+                                collision.x, collision.y
+                            );
+                            remainingLength -= segmentLength;
+                            reflectionCount++;
+                        } else {
+                            // Hit wall or max reflections reached
+                            break;
+                        }
+                    } else {
+                        // No collision, beam continues to max length
+                        const endX = currentX + dirVector.x * remainingLength;
+                        const endY = currentY + dirVector.y * remainingLength;
+                        segments.push({
+                            startX: currentX,
+                            startY: currentY,
+                            endX: endX,
+                            endY: endY
+                        });
+                        break;
+                    }
+                }
+                
+                return segments;
+            }
+            
+            getDirectionVector(direction) {
+                switch(direction) {
+                    case 'up': return { x: 0, y: -1 };
+                    case 'down': return { x: 0, y: 1 };
+                    case 'left': return { x: -1, y: 0 };
+                    case 'right': return { x: 1, y: 0 };
+                    default: return { x: 0, y: 0 };
+                }
+            }
+            
+            findNextCollision(startX, startY, dirVector, maxDist, reflectors) {
+                let closestCollision = null;
+                let closestDist = maxDist;
+                
+                // Check collision with reflectors
+                if (reflectors) {
+                    reflectors.forEach(reflector => {
+                        const collision = this.rayRectIntersection(
+                            startX, startY, dirVector,
+                            reflector.x, reflector.y, 40, 40
+                        );
+                        
+                        if (collision && collision.distance < closestDist) {
+                            closestDist = collision.distance;
+                            closestCollision = {
+                                x: collision.x,
+                                y: collision.y,
+                                reflector: reflector
+                            };
+                        }
+                    });
+                }
+                
+                // Check collision with world bounds
+                const boundsCollision = this.rayBoundsIntersection(startX, startY, dirVector, maxDist);
+                if (boundsCollision && boundsCollision.distance < closestDist) {
+                    closestCollision = {
+                        x: boundsCollision.x,
+                        y: boundsCollision.y,
+                        reflector: null
+                    };
+                }
+                
+                return closestCollision;
+            }
+            
+            rayRectIntersection(rayX, rayY, rayDir, rectX, rectY, rectW, rectH) {
+                // Simple AABB ray intersection
+                const halfW = rectW / 2;
+                const halfH = rectH / 2;
+                const minX = rectX - halfW;
+                const maxX = rectX + halfW;
+                const minY = rectY - halfH;
+                const maxY = rectY + halfH;
+                
+                let tMin = -Infinity;
+                let tMax = Infinity;
+                
+                if (rayDir.x !== 0) {
+                    const tx1 = (minX - rayX) / rayDir.x;
+                    const tx2 = (maxX - rayX) / rayDir.x;
+                    tMin = Math.max(tMin, Math.min(tx1, tx2));
+                    tMax = Math.min(tMax, Math.max(tx1, tx2));
+                }
+                
+                if (rayDir.y !== 0) {
+                    const ty1 = (minY - rayY) / rayDir.y;
+                    const ty2 = (maxY - rayY) / rayDir.y;
+                    tMin = Math.max(tMin, Math.min(ty1, ty2));
+                    tMax = Math.min(tMax, Math.max(ty1, ty2));
+                }
+                
+                if (tMax >= tMin && tMin > 0) {
+                    return {
+                        x: rayX + rayDir.x * tMin,
+                        y: rayY + rayDir.y * tMin,
+                        distance: tMin
+                    };
+                }
+                
+                return null;
+            }
+            
+            rayBoundsIntersection(rayX, rayY, rayDir, maxDist) {
+                const bounds = { minX: 50, maxX: 750, minY: 50, maxY: 550 };
+                let closestT = maxDist;
+                let hitPoint = null;
+                
+                // Check each boundary
+                if (rayDir.x > 0) {
+                    const t = (bounds.maxX - rayX) / rayDir.x;
+                    if (t > 0 && t < closestT) {
+                        closestT = t;
+                        hitPoint = { x: bounds.maxX, y: rayY + rayDir.y * t };
+                    }
+                } else if (rayDir.x < 0) {
+                    const t = (bounds.minX - rayX) / rayDir.x;
+                    if (t > 0 && t < closestT) {
+                        closestT = t;
+                        hitPoint = { x: bounds.minX, y: rayY + rayDir.y * t };
+                    }
+                }
+                
+                if (rayDir.y > 0) {
+                    const t = (bounds.maxY - rayY) / rayDir.y;
+                    if (t > 0 && t < closestT) {
+                        closestT = t;
+                        hitPoint = { x: rayX + rayDir.x * t, y: bounds.maxY };
+                    }
+                } else if (rayDir.y < 0) {
+                    const t = (bounds.minY - rayY) / rayDir.y;
+                    if (t > 0 && t < closestT) {
+                        closestT = t;
+                        hitPoint = { x: rayX + rayDir.x * t, y: bounds.minY };
+                    }
+                }
+                
+                if (hitPoint) {
+                    return { x: hitPoint.x, y: hitPoint.y, distance: closestT };
+                }
+                
+                return null;
+            }
+            
+            calculateReflection(incomingDir, reflector) {
+                // Reflect based on reflector orientation (45° or 135°)
+                // For simplicity, we'll use the reflector's orientation property
+                const orientation = reflector.orientation;
+                
+                if (orientation === 45) {
+                    // 45° reflector: up<->right, down<->left
+                    switch(incomingDir) {
+                        case 'up': return 'right';
+                        case 'right': return 'up';
+                        case 'down': return 'left';
+                        case 'left': return 'down';
+                    }
+                } else if (orientation === 135) {
+                    // 135° reflector: up<->left, down<->right
+                    switch(incomingDir) {
+                        case 'up': return 'left';
+                        case 'left': return 'up';
+                        case 'down': return 'right';
+                        case 'right': return 'down';
+                    }
+                }
+                
+                return incomingDir;
+            }
+            
+            render(segments) {
+                // Render glow effect (thicker, more transparent)
+                this.glowGraphics.lineStyle(12, 0xffff00, 0.3);
+                segments.forEach(seg => {
+                    this.glowGraphics.lineBetween(seg.startX, seg.startY, seg.endX, seg.endY);
+                });
+                
+                // Render main beam (thinner, more opaque)
+                this.graphics.lineStyle(4, 0xffff00, 0.9);
+                segments.forEach(seg => {
+                    this.graphics.lineBetween(seg.startX, seg.startY, seg.endX, seg.endY);
+                });
+                
+                // Add light beam glow trail particles along the beam path
+                segments.forEach(seg => {
+                    // Create particles along the beam at intervals
+                    const length = Phaser.Math.Distance.Between(seg.startX, seg.startY, seg.endX, seg.endY);
+                    const numParticles = Math.floor(length / 30); // One particle every 30 pixels
+                    
+                    for (let i = 0; i < numParticles; i++) {
+                        const t = i / numParticles;
+                        const x = seg.startX + (seg.endX - seg.startX) * t;
+                        const y = seg.startY + (seg.endY - seg.startY) * t;
+                        
+                        // Randomly create glow trail particles
+                        if (Math.random() < 0.15) {
+                            this.createLightBeamGlowTrail(x, y);
+                        }
+                    }
+                });
+            }
+            
+            createLightBeamGlowTrail(x, y) {
+                // Add light beam glow trails
+                let trail = this.scene.add.circle(x, y, 4, 0xffff00, 0.6);
+                trail.setDepth(6);
+                
+                this.scene.tweens.add({
+                    targets: trail,
+                    alpha: 0,
+                    scale: 1.5,
+                    duration: 400,
+                    ease: 'Power2',
+                    onComplete: () => trail.destroy()
+                });
+            }
+            
+            checkDoorMechanismHits(segments, doorMechanisms) {
+                segments.forEach(seg => {
+                    doorMechanisms.forEach(mechanism => {
+                        // Check if beam segment passes through mechanism
+                        const dist = this.pointToLineDistance(
+                            mechanism.x, mechanism.y,
+                            seg.startX, seg.startY,
+                            seg.endX, seg.endY
+                        );
+                        
+                        if (dist < 20) {
+                            mechanism.activate();
+                        }
+                    });
+                });
+            }
+            
+            pointToLineDistance(px, py, x1, y1, x2, y2) {
+                const A = px - x1;
+                const B = py - y1;
+                const C = x2 - x1;
+                const D = y2 - y1;
+                
+                const dot = A * C + B * D;
+                const lenSq = C * C + D * D;
+                let param = -1;
+                
+                if (lenSq !== 0) {
+                    param = dot / lenSq;
+                }
+                
+                let xx, yy;
+                
+                if (param < 0) {
+                    xx = x1;
+                    yy = y1;
+                } else if (param > 1) {
+                    xx = x2;
+                    yy = y2;
+                } else {
+                    xx = x1 + param * C;
+                    yy = y1 + param * D;
+                }
+                
+                const dx = px - xx;
+                const dy = py - yy;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        // CRYSTAL REFLECTOR CLASS
+        class CrystalReflector {
+            constructor(scene, x, y, orientation) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.orientation = orientation; // 45 or 135 degrees
+                
+                // Create visual crystal prism sprite with glow - larger and more visible
+                this.sprite = scene.add.rectangle(x, y, 50, 50, 0xff00ff, 0.8);
+                this.sprite.setStrokeStyle(4, 0xffaaff, 1);
+                this.sprite.setDepth(50);
+                this.sprite.setAngle(orientation);
+                
+                // Outer glow - larger
+                this.glow = scene.add.circle(x, y, 40, 0xff00ff, 0.4);
+                this.glow.setDepth(49);
+                
+                // Pulsing glow animation
+                scene.tweens.add({
+                    targets: this.glow,
+                    alpha: { from: 0.3, to: 0.6 },
+                    scale: { from: 0.9, to: 1.2 },
+                    duration: 1500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+                
+                // Add pushable physics body
+                scene.physics.add.existing(this.sprite);
+                this.sprite.body.setCollideWorldBounds(true);
+                this.sprite.body.setDrag(200, 200); // Add drag for smooth pushing
+                this.sprite.body.setMass(2); // Make it pushable but not too light
+                
+                // Store reference to this reflector object in the sprite
+                this.sprite.reflectorData = this;
+            }
+            
+            update() {
+                // Update glow position to follow sprite (in case it's pushed)
+                this.glow.setPosition(this.sprite.x, this.sprite.y);
+                this.x = this.sprite.x;
+                this.y = this.sprite.y;
+            }
+            
+            getSprite() {
+                return this.sprite;
+            }
+        }
+
+        // DOOR MECHANISM CLASS
+        class DoorMechanism {
+            constructor(scene, x, y, linkedDoorId) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.linkedDoorId = linkedDoorId;
+                this.linkedDoor = null;
+                this.isActivated = false;
+                
+                // Create mechanism as beam target point - larger and more visible
+                this.sprite = scene.add.circle(x, y, 18, 0xff8800, 0.9);
+                this.sprite.setStrokeStyle(3, 0xffff00, 1);
+                this.sprite.setDepth(50);
+                
+                // Outer ring - larger
+                this.ring = scene.add.circle(x, y, 30, 0xff8800, 0);
+                this.ring.setStrokeStyle(4, 0xff8800, 0.7);
+                this.ring.setDepth(49);
+                
+                // Pulsing animation when inactive
+                this.pulseAnimation = scene.tweens.add({
+                    targets: this.ring,
+                    scale: { from: 1, to: 1.4 },
+                    alpha: { from: 0.7, to: 0.3 },
+                    duration: 1000,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+            
+            linkDoor(door) {
+                this.linkedDoor = door;
+            }
+            
+            activate() {
+                if (!this.isActivated) {
+                    this.isActivated = true;
+                    
+                    // Visual feedback for activation
+                    this.sprite.setFillStyle(0x00ff00, 1);
+                    this.ring.setStrokeStyle(3, 0x00ff00, 1);
+                    
+                    // Stop pulsing, add glow
+                    if (this.pulseAnimation) {
+                        this.pulseAnimation.stop();
+                    }
+                    this.ring.setScale(1.5);
+                    this.ring.setAlpha(0.8);
+                    
+                    // Open linked door
+                    if (this.linkedDoor) {
+                        this.linkedDoor.open();
+                    }
+                }
+            }
+            
+            deactivate() {
+                if (this.isActivated) {
+                    this.isActivated = false;
+                    
+                    // Reset visual state
+                    this.sprite.setFillStyle(0xff8800, 0.8);
+                    this.ring.setStrokeStyle(3, 0xff8800, 0.6);
+                    
+                    // Restart pulsing animation
+                    this.pulseAnimation = this.scene.tweens.add({
+                        targets: this.ring,
+                        scale: { from: 1, to: 1.3 },
+                        alpha: { from: 0.6, to: 0.2 },
+                        duration: 1000,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                    
+                    // Close linked door
+                    if (this.linkedDoor) {
+                        this.linkedDoor.close();
+                    }
+                }
+            }
+        }
+
+        // CRYSTAL DOOR CLASS
+        class CrystalDoor {
+            constructor(scene, x, y, width, height, doorId) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.doorId = doorId;
+                this.isOpen = false;
+                
+                // Create door sprite - more visible
+                this.sprite = scene.add.rectangle(x, y, width, height, 0x4444ff, 0.9);
+                this.sprite.setStrokeStyle(4, 0x00ffff, 1);
+                this.sprite.setDepth(50);
+                
+                // Add physics body with collision
+                scene.physics.add.existing(this.sprite, true);
+                
+                // Shimmer effect when closed
+                this.shimmerAnimation = scene.tweens.add({
+                    targets: this.sprite,
+                    alpha: { from: 0.8, to: 1 },
+                    duration: 1500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+            
+            open() {
+                if (!this.isOpen) {
+                    this.isOpen = true;
+                    
+                    // Visual state change - transparent when open
+                    this.sprite.setAlpha(0.2);
+                    this.sprite.setFillStyle(0x00ff88, 0.2);
+                    
+                    // Disable collision
+                    this.sprite.body.enable = false;
+                    
+                    // Stop shimmer animation
+                    if (this.shimmerAnimation) {
+                        this.shimmerAnimation.stop();
+                    }
+                    
+                    // Opening animation
+                    this.scene.tweens.add({
+                        targets: this.sprite,
+                        scaleY: 0.1,
+                        duration: 300,
+                        ease: 'Power2.easeIn'
+                    });
+                }
+            }
+            
+            close() {
+                if (this.isOpen) {
+                    this.isOpen = false;
+                    
+                    // Visual state change - solid when closed
+                    this.sprite.setAlpha(0.8);
+                    this.sprite.setFillStyle(0x8888ff, 0.8);
+                    
+                    // Enable collision
+                    this.sprite.body.enable = true;
+                    
+                    // Restart shimmer animation
+                    this.shimmerAnimation = this.scene.tweens.add({
+                        targets: this.sprite,
+                        alpha: { from: 0.7, to: 0.9 },
+                        duration: 1500,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                    
+                    // Closing animation
+                    this.scene.tweens.add({
+                        targets: this.sprite,
+                        scaleY: 1,
+                        duration: 300,
+                        ease: 'Power2.easeOut'
+                    });
+                }
+            }
+            
+            getSprite() {
+                return this.sprite;
+            }
+        }
+
+        // TIMED BARRIER CLASS
+        class TimedBarrier {
+            constructor(scene, x, y, width, height, offset = 0) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.offset = offset;
+                this.cycleTime = 4000; // 4 seconds total (2 on, 2 off)
+                this.startTime = scene.time.now + offset;
+                this.isActive = true;
+                
+                // Define barrier sprite with crystal appearance
+                this.sprite = scene.add.rectangle(x, y, width, height, 0x00ffff, 0.8);
+                this.sprite.setStrokeStyle(3, 0x00ffff, 1);
+                this.sprite.setDepth(50);
+                
+                // Outer glow effect
+                this.glow = scene.add.rectangle(x, y, width + 10, height + 10, 0x00ffff, 0.3);
+                this.glow.setDepth(49);
+                
+                // Add physics body with collision
+                scene.physics.add.existing(this.sprite, true);
+                
+                // Pulsing animation for active state
+                this.pulseAnimation = scene.tweens.add({
+                    targets: [this.sprite, this.glow],
+                    alpha: { from: 0.6, to: 0.9 },
+                    duration: 800,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+            
+            update() {
+                // Add update() method to check cycle timing
+                const elapsed = (this.scene.time.now - this.startTime) % this.cycleTime;
+                const shouldBeActive = elapsed < 2000; // Active for first 2 seconds of cycle
+                
+                if (shouldBeActive !== this.isActive) {
+                    this.isActive = shouldBeActive;
+                    
+                    if (this.isActive) {
+                        // Enable collision and render solid when active
+                        this.sprite.body.enable = true;
+                        this.sprite.setAlpha(0.8);
+                        this.sprite.setFillStyle(0x00ffff, 0.8);
+                        this.glow.setAlpha(0.3);
+                        
+                        // Restart pulsing animation
+                        if (this.pulseAnimation) {
+                            this.pulseAnimation.resume();
+                        }
+                    } else {
+                        // Disable collision and render transparent when phased out
+                        this.sprite.body.enable = false;
+                        this.sprite.setAlpha(0.2);
+                        this.sprite.setFillStyle(0x00ffff, 0.2);
+                        this.glow.setAlpha(0.1);
+                        
+                        // Pause pulsing animation
+                        if (this.pulseAnimation) {
+                            this.pulseAnimation.pause();
+                        }
+                    }
+                }
+                
+                // Implement pulsing animation before phase changes
+                // Add color shift to indicate upcoming state change
+                const timeUntilChange = this.isActive ? (2000 - elapsed) : (4000 - elapsed);
+                
+                if (timeUntilChange < 500) {
+                    // Warning pulse - faster and more intense
+                    const warningIntensity = 1 - (timeUntilChange / 500);
+                    
+                    if (this.isActive) {
+                        // About to phase out - shift to yellow warning
+                        const colorLerp = Phaser.Display.Color.Interpolate.ColorWithColor(
+                            Phaser.Display.Color.ValueToColor(0x00ffff),
+                            Phaser.Display.Color.ValueToColor(0xffff00),
+                            100,
+                            warningIntensity * 100
+                        );
+                        const warningColor = Phaser.Display.Color.GetColor(colorLerp.r, colorLerp.g, colorLerp.b);
+                        this.sprite.setFillStyle(warningColor, 0.8);
+                        this.sprite.setStrokeStyle(3, warningColor, 1);
+                    } else {
+                        // About to phase in - shift from transparent to cyan
+                        const alphaValue = 0.2 + (warningIntensity * 0.6);
+                        this.sprite.setAlpha(alphaValue);
+                        this.glow.setAlpha(alphaValue * 0.4);
+                    }
+                    
+                    // Display subtle particle effects during transitions
+                    if (Math.random() < 0.3) {
+                        this.createTransitionParticle();
+                    }
+                } else {
+                    // Reset to normal colors when not in warning period
+                    if (this.isActive) {
+                        this.sprite.setFillStyle(0x00ffff, 0.8);
+                        this.sprite.setStrokeStyle(3, 0x00ffff, 1);
+                    }
+                }
+            }
+            
+            createTransitionParticle() {
+                // Create small sparkle particles around the barrier edges
+                const side = Phaser.Math.Between(0, 3);
+                let px, py;
+                
+                switch(side) {
+                    case 0: // Top
+                        px = this.x + Phaser.Math.Between(-this.width/2, this.width/2);
+                        py = this.y - this.height/2;
+                        break;
+                    case 1: // Right
+                        px = this.x + this.width/2;
+                        py = this.y + Phaser.Math.Between(-this.height/2, this.height/2);
+                        break;
+                    case 2: // Bottom
+                        px = this.x + Phaser.Math.Between(-this.width/2, this.width/2);
+                        py = this.y + this.height/2;
+                        break;
+                    case 3: // Left
+                        px = this.x - this.width/2;
+                        py = this.y + Phaser.Math.Between(-this.height/2, this.height/2);
+                        break;
+                }
+                
+                const particle = this.scene.add.circle(px, py, 2, 0x00ffff, 0.8);
+                particle.setDepth(51);
+                
+                this.scene.tweens.add({
+                    targets: particle,
+                    alpha: 0,
+                    scale: 0,
+                    y: py + Phaser.Math.Between(-10, 10),
+                    x: px + Phaser.Math.Between(-10, 10),
+                    duration: 400,
+                    ease: 'Power2',
+                    onComplete: () => particle.destroy()
+                });
+            }
+            
+            getSprite() {
+                return this.sprite;
+            }
+        }
+
+        // COLORED PRESSURE PLATE CLASS
+        class ColoredPressurePlate {
+            constructor(scene, x, y, color) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.color = color; // 'red', 'blue', 'green'
+                this.isPressed = false;
+                this.linkedDoors = [];
+                
+                // Define color hex values
+                const colorMap = {
+                    red: 0xff0000,
+                    blue: 0x0000ff,
+                    green: 0x00ff00
+                };
+                this.colorHex = colorMap[color];
+                
+                // Render plates as colored circles with distinct visual appearance
+                this.sprite = scene.add.circle(x, y, 25, this.colorHex, 0.6);
+                this.sprite.setStrokeStyle(3, this.colorHex, 1);
+                this.sprite.setDepth(50);
+                
+                // Inner indicator circle
+                this.indicator = scene.add.circle(x, y, 12, this.colorHex, 0.8);
+                this.indicator.setDepth(51);
+                
+                // Outer glow ring
+                this.glow = scene.add.circle(x, y, 35, this.colorHex, 0.3);
+                this.glow.setDepth(49);
+                
+                // Pulsing animation for unpressed state
+                this.pulseAnimation = scene.tweens.add({
+                    targets: [this.indicator, this.glow],
+                    scale: { from: 0.9, to: 1.1 },
+                    alpha: { from: 0.5, to: 0.8 },
+                    duration: 1000,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+            
+            linkDoor(door) {
+                this.linkedDoors.push(door);
+            }
+            
+            update(player) {
+                // Implement player detection using distance calculation
+                const dist = Phaser.Math.Distance.Between(
+                    player.x, player.y,
+                    this.x, this.y
+                );
+                
+                // Activate when player is within 35 pixels
+                if (dist < 35 && !this.isPressed) {
+                    this.activate();
+                } else if (dist >= 35 && this.isPressed) {
+                    this.deactivate();
+                }
+            }
+            
+            activate() {
+                // Add pressed/unpressed state tracking
+                this.isPressed = true;
+                
+                // Visual feedback - brighter and more solid when pressed
+                this.sprite.setFillStyle(this.colorHex, 0.9);
+                this.sprite.setScale(0.9); // Slightly compressed
+                this.indicator.setFillStyle(0xffffff, 1); // White center when active
+                this.glow.setScale(1.3);
+                this.glow.setAlpha(0.6);
+                
+                // Stop pulsing animation
+                if (this.pulseAnimation) {
+                    this.pulseAnimation.stop();
+                }
+                
+                // Open all linked doors immediately
+                this.linkedDoors.forEach(door => door.open());
+            }
+            
+            deactivate() {
+                this.isPressed = false;
+                
+                // Reset visual state
+                this.sprite.setFillStyle(this.colorHex, 0.6);
+                this.sprite.setScale(1);
+                this.indicator.setFillStyle(this.colorHex, 0.8);
+                this.glow.setScale(1);
+                this.glow.setAlpha(0.3);
+                
+                // Restart pulsing animation
+                this.pulseAnimation = this.scene.tweens.add({
+                    targets: [this.indicator, this.glow],
+                    scale: { from: 0.9, to: 1.1 },
+                    alpha: { from: 0.5, to: 0.8 },
+                    duration: 1000,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+                
+                // Close linked doors after 2 seconds
+                this.scene.time.delayedCall(2000, () => {
+                    this.linkedDoors.forEach(door => door.close());
+                });
+            }
+        }
+
+        // COLORED DOOR CLASS
+        class ColoredDoor {
+            constructor(scene, x, y, width, height, color) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.color = color; // 'red', 'blue', 'green'
+                this.isOpen = false;
+                
+                // Define color hex values matching plates
+                const colorMap = {
+                    red: 0xff0000,
+                    blue: 0x0000ff,
+                    green: 0x00ff00
+                };
+                this.colorHex = colorMap[color];
+                
+                // Define door with color property matching plates
+                this.sprite = scene.add.rectangle(x, y, width, height, this.colorHex, 0.8);
+                this.sprite.setStrokeStyle(4, this.colorHex, 1);
+                this.sprite.setDepth(50);
+                
+                // Add glow effect
+                this.glow = scene.add.rectangle(x, y, width + 10, height + 10, this.colorHex, 0.3);
+                this.glow.setDepth(49);
+                
+                // Add physics body with collision
+                scene.physics.add.existing(this.sprite, true);
+                
+                // Shimmer animation when closed
+                this.shimmerAnimation = scene.tweens.add({
+                    targets: [this.sprite, this.glow],
+                    alpha: { from: 0.7, to: 0.9 },
+                    duration: 1500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+            
+            open() {
+                if (!this.isOpen) {
+                    this.isOpen = true;
+                    
+                    // Add visual state changes (solid when closed, transparent when open)
+                    this.sprite.setAlpha(0.2);
+                    this.sprite.setFillStyle(this.colorHex, 0.2);
+                    this.glow.setAlpha(0.1);
+                    
+                    // Disable collision
+                    this.sprite.body.enable = false;
+                    
+                    // Stop shimmer animation
+                    if (this.shimmerAnimation) {
+                        this.shimmerAnimation.stop();
+                    }
+                    
+                    // Opening animation - door shrinks vertically
+                    this.scene.tweens.add({
+                        targets: this.sprite,
+                        scaleY: 0.1,
+                        duration: 400,
+                        ease: 'Power2.easeIn'
+                    });
+                    
+                    this.scene.tweens.add({
+                        targets: this.glow,
+                        scaleY: 0.1,
+                        alpha: 0.05,
+                        duration: 400,
+                        ease: 'Power2.easeIn'
+                    });
+                }
+            }
+            
+            close() {
+                if (this.isOpen) {
+                    this.isOpen = false;
+                    
+                    // Visual state changes - solid when closed
+                    this.sprite.setAlpha(0.8);
+                    this.sprite.setFillStyle(this.colorHex, 0.8);
+                    this.glow.setAlpha(0.3);
+                    
+                    // Enable collision
+                    this.sprite.body.enable = true;
+                    
+                    // Restart shimmer animation
+                    this.shimmerAnimation = this.scene.tweens.add({
+                        targets: [this.sprite, this.glow],
+                        alpha: { from: 0.7, to: 0.9 },
+                        duration: 1500,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                    
+                    // Closing animation - door expands back
+                    this.scene.tweens.add({
+                        targets: this.sprite,
+                        scaleY: 1,
+                        duration: 400,
+                        ease: 'Power2.easeOut'
+                    });
+                    
+                    this.scene.tweens.add({
+                        targets: this.glow,
+                        scaleY: 1,
+                        alpha: 0.3,
+                        duration: 400,
+                        ease: 'Power2.easeOut'
+                    });
+                }
+            }
+            
+            getSprite() {
+                return this.sprite;
+            }
+        }
+
+        // SPIKE HAZARD CLASS
+        class SpikeHazard {
+            constructor(scene, x, y) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                
+                // Create spike visual using graphics - triangular shape
+                this.graphics = scene.add.graphics();
+                this.graphics.setDepth(5);
+                
+                // Draw multiple small spikes in a cluster
+                const spikePositions = [
+                    { offsetX: -12, offsetY: 0 },
+                    { offsetX: 0, offsetY: 0 },
+                    { offsetX: 12, offsetY: 0 }
+                ];
+                
+                spikePositions.forEach(pos => {
+                    // Main spike body - red
+                    this.graphics.fillStyle(0xff2222, 1);
+                    this.graphics.fillTriangle(
+                        x + pos.offsetX - 8, y + 12,  // bottom left
+                        x + pos.offsetX + 8, y + 12,  // bottom right
+                        x + pos.offsetX, y - 12       // top point
+                    );
+                    
+                    // Spike outline - orange glow
+                    this.graphics.lineStyle(2, 0xff6600, 0.9);
+                    this.graphics.strokeTriangle(
+                        x + pos.offsetX - 8, y + 12,
+                        x + pos.offsetX + 8, y + 12,
+                        x + pos.offsetX, y - 12
+                    );
+                });
+                
+                // Add danger glow effect at base
+                this.glowCircle = scene.add.circle(x, y + 8, 20, 0xff4444, 0.3);
+                this.glowCircle.setDepth(4);
+                
+                // Pulsing danger animation
+                scene.tweens.add({
+                    targets: this.glowCircle,
+                    alpha: { from: 0.3, to: 0.6 },
+                    scale: { from: 1, to: 1.2 },
+                    duration: 800,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+                
+                // Create physics zone for overlap detection
+                this.zone = scene.add.zone(x, y, 40, 32);
+                scene.physics.add.existing(this.zone);
+                this.zone.body.setAllowGravity(false);
+                this.zone.body.setImmovable(true);
+            }
+            
+            checkCollision(player) {
+                const overlap = this.scene.physics.overlap(player, this.zone);
+                if (overlap) {
+                    return true;
+                }
+                return false;
+            }
+            
+            triggerDeath(player) {
+                // Death effect - camera shake and flash
+                this.scene.cameras.main.shake(250, 0.015);
+                this.scene.cameras.main.flash(250, 255, 50, 50);
+                
+                // Play death sound (optional)
+                this.playDeathSound();
+                
+                // Respawn player at start position after delay
+                this.scene.time.delayedCall(300, () => {
+                    player.setPosition(this.scene.spawnPoint.x, this.scene.spawnPoint.y);
+                    player.setVelocity(0, 0);
+                    
+                    // Brief invincibility flash
+                    this.scene.tweens.add({
+                        targets: player,
+                        alpha: { from: 0.3, to: 1 },
+                        duration: 100,
+                        repeat: 3,
+                        yoyo: true
+                    });
+                });
+            }
+            
+            playDeathSound() {
+                // Create a harsh death sound using Web Audio API
+                try {
+                    const audioContext = this.scene.sound.context;
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.type = 'sawtooth';
+                    oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.2);
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                } catch (e) {
+                    console.log('Audio context not available');
+                }
+            }
+            
+            destroy() {
+                if (this.graphics) this.graphics.destroy();
+                if (this.glowCircle) this.glowCircle.destroy();
+                if (this.zone) this.zone.destroy();
+            }
+        }
+
+        // LEVEL 2 - SIMPLE VERSION THAT WORKS!
+        class Level2 extends Phaser.Scene {
+            constructor() {
+                super({ key: 'Level2' });
+            }
+
+            preload() {
+                this.load.setBaseURL('./');
+                this.load.image('luma', 'assets/luma.png');
+                this.load.image('fragment', 'assets/fragment.png');
+                this.load.image('pedestal_off', 'assets/pedestal_off.png');
+                this.load.image('pedestal_on', 'assets/pedestal_on.png');
+                this.load.image('wall', 'assets/tiles_wall.jpg');
+            }
+
+            create() {
+                console.log('Level2 (SIMPLE) create started');
+                
+                // Dark blue background
+                this.add.rectangle(400, 300, 800, 600, 0x1a1a3e);
+
+                // Floor
+                for (let y = 0; y < 10; y++) {
+                    for (let x = 0; x < 13; x++) {
+                        this.add.rectangle(x * 64 + 32, y * 64 + 32, 60, 60, 0x4a5c8c, 0.3);
+                    }
+                }
+
+                // Walls
+                this.walls = this.physics.add.staticGroup();
+                for (let x = 0; x < 13; x++) {
+                    this.walls.create(x * 64 + 32, 32, 'wall').setOrigin(0.5).refreshBody();
+                    this.walls.create(x * 64 + 32, 568, 'wall').setOrigin(0.5).refreshBody();
+                }
+                for (let y = 1; y < 9; y++) {
+                    this.walls.create(32, y * 64 + 32, 'wall').setOrigin(0.5).refreshBody();
+                    this.walls.create(768, y * 64 + 32, 'wall').setOrigin(0.5).refreshBody();
+                }
+
+                // Interior walls - more complex maze layout
+                this.walls.create(192, 192, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(192, 256, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(384, 256, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(512, 384, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(640, 192, 'wall').setOrigin(0.5).refreshBody();
+                
+                // Additional obstacles for more challenge
+                this.walls.create(320, 128, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(256, 320, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(448, 192, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(576, 256, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(320, 448, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(448, 512, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(640, 384, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(576, 512, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(192, 384, 'wall').setOrigin(0.5).refreshBody();
+                this.walls.create(128, 448, 'wall').setOrigin(0.5).refreshBody();
+
+                // Player spawn point (for respawning after death)
+                this.spawnPoint = { x: 150, y: 150 };
+                
+                // Player
+                this.player = this.physics.add.sprite(this.spawnPoint.x, this.spawnPoint.y, 'luma');
+                this.player.setScale(0.3);
+                this.player.body.setSize(50, 50);
+                this.player.body.setOffset((128-50)/2, (120-50)/2);
+                this.player.setCollideWorldBounds(true);
+                this.player.setDepth(10);
+                console.log('Player created at', this.player.x, this.player.y);
+
+                this.physics.add.collider(this.player, this.walls);
+
+                // Create spike hazards in strategic locations
+                this.spikes = [];
+                
+                // Spike 1: Near first fragment area (narrow passage)
+                this.spikes.push(new SpikeHazard(this, 250, 200));
+                
+                // Spike 2: In the middle corridor
+                this.spikes.push(new SpikeHazard(this, 450, 300));
+                
+                // Spike 3: Near the third fragment (requires careful navigation)
+                this.spikes.push(new SpikeHazard(this, 550, 450));
+                
+                // Spike 4: Near a wall corner (adds challenge)
+                this.spikes.push(new SpikeHazard(this, 350, 380));
+                
+                // Spike 5: Near the pedestal approach
+                this.spikes.push(new SpikeHazard(this, 620, 320));
+                
+                console.log('Created', this.spikes.length, 'spike hazards');
+
+                // 4 Fragments
+                this.fragments = this.physics.add.group();
+                this.fragments.create(300, 200, 'fragment').setScale(0.25).setDepth(10);
+                this.fragments.create(500, 300, 'fragment').setScale(0.25).setDepth(10);
+                this.fragments.create(600, 450, 'fragment').setScale(0.25).setDepth(10);
+                this.fragments.create(400, 400, 'fragment').setScale(0.25).setDepth(10);
+
+                this.fragmentsCollected = 0;
+
+                this.physics.add.overlap(this.player, this.fragments, (p, f) => {
+                    // Play pop sound effect
+                    this.playPopSound();
+                    
+                    f.destroy();
+                    this.fragmentsCollected++;
+                    this.fragmentText.setText(`Fragments: ${this.fragmentsCollected}/4`);
+                    console.log('Fragment collected:', this.fragmentsCollected);
+                }, null, this);
+
+                // Pedestal - made bigger and more prominent
+                this.pedestal = this.physics.add.sprite(700, 300, 'pedestal_off');
+                this.pedestal.setScale(0.6);  // Increased from 0.4 to 0.6 (50% bigger)
+                this.pedestal.setDepth(10);
+                this.pedestal.body.setImmovable(true);
+                this.pedestalActivated = false;
+                this.levelComplete = false;
+                this.isDying = false;
+                
+                // Add glow effect around pedestal to make it more prominent
+                this.pedestalGlow = this.add.circle(700, 300, 50, 0x00ffff, 0.2);
+                this.pedestalGlow.setDepth(9);
+                
+                // Pulsing glow animation
+                this.tweens.add({
+                    targets: this.pedestalGlow,
+                    alpha: { from: 0.2, to: 0.4 },
+                    scale: { from: 1, to: 1.2 },
+                    duration: 1500,
+                    yoyo: true,
+                    repeat: -1,
+                    ease: 'Sine.easeInOut'
+                });
+
+                this.physics.add.overlap(this.player, this.pedestal, () => {
+                    if (this.pedestalActivated && !this.levelComplete) {
+                        this.levelComplete = true;
+                        this.completeText.setVisible(true);
+                        this.player.setVelocity(0);
+                        
+                        this.time.delayedCall(2000, () => {
+                            this.scene.start('VictoryScene');
+                        });
+                    }
+                }, null, this);
+
+                // UI
+                this.fragmentText = this.add.text(20, 20, 'Fragments: 0/4', {
+                    fontSize: '24px',
+                    fill: '#00ffff',
+                    stroke: '#000',
+                    strokeThickness: 4
+                }).setDepth(100);
+
+                this.add.text(20, 50, 'Stage 2 - Crystal Labyrinth', {
+                    fontSize: '18px',
+                    fill: '#ffffff',
+                    stroke: '#000',
+                    strokeThickness: 3
+                }).setDepth(100);
+
+                this.completeText = this.add.text(400, 300, 'Stage 2 Complete!', {
+                    fontSize: '48px',
+                    fill: '#00ffff',
+                    fontStyle: 'bold',
+                    stroke: '#000',
+                    strokeThickness: 6
+                }).setOrigin(0.5).setVisible(false).setDepth(100);
+
+                this.keys = this.input.keyboard.createCursorKeys();
+                console.log('Keys created');
+                console.log('Level2 create complete');
+            }
+
+            update() {
+                let speed = 200;
+                this.player.setVelocity(0);
+
+                if (this.keys.left.isDown) this.player.setVelocityX(-speed);
+                if (this.keys.right.isDown) this.player.setVelocityX(speed);
+                if (this.keys.up.isDown) this.player.setVelocityY(-speed);
+                if (this.keys.down.isDown) this.player.setVelocityY(speed);
+
+                // Check spike collisions
+                if (this.spikes && !this.isDying) {
+                    for (let spike of this.spikes) {
+                        if (spike.checkCollision(this.player)) {
+                            this.isDying = true;
+                            spike.triggerDeath(this.player);
+                            
+                            // Reset dying flag after respawn
+                            this.time.delayedCall(400, () => {
+                                this.isDying = false;
+                            });
+                            break;
+                        }
+                    }
+                }
+
+                if (this.fragmentsCollected === 4 && !this.pedestalActivated) {
+                    this.pedestal.setTexture('pedestal_on');
+                    this.pedestalActivated = true;
+                    
+                    // Change glow to bright green when activated
+                    this.pedestalGlow.setFillStyle(0x00ff00, 0.4);
+                    
+                    // More intense pulsing when activated
+                    this.tweens.killTweensOf(this.pedestalGlow);
+                    this.tweens.add({
+                        targets: this.pedestalGlow,
+                        alpha: { from: 0.4, to: 0.7 },
+                        scale: { from: 1, to: 1.4 },
+                        duration: 1000,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                    
+                    console.log('Pedestal activated!');
+                }
+            }
+            
+            playPopSound() {
+                // Create a pop sound using Web Audio API
+                const audioContext = this.sound.context;
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                // Pop effect: quick descending note
+                oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.15);
+            }
+            
+            shutdown() {
+                console.log('Level2 shutdown');
+                if (this.time) {
+                    this.time.removeAllEvents();
+                }
+            }
+        }
+
+        // VICTORY SCENE - Stage 2 Complete
+        class VictoryScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'VictoryScene' });
+            }
+
+            preload() {
+                this.load.setBaseURL('./');
+                this.load.image('luma', 'assets/luma.png');
+                this.load.video('output', 'assets/output.mp4');
+            }
+
+            create() {
+                console.log('VictoryScene started');
+                
+                // Show "Quest Complete!" message first
+                this.showCompletionMessage();
+            }
+            
+            showCompletionMessage() {
+                // Black background
+                this.add.rectangle(400, 300, 800, 600, 0x000000);
+
+                // "Quest Complete!" text
+                let completeText = this.add.text(400, 300, 'QUEST COMPLETE!', {
+                    fontSize: '64px',
+                    fill: '#00ffff',
+                    fontStyle: 'bold',
+                    stroke: '#ff00ff',
+                    strokeThickness: 6
+                }).setOrigin(0.5);
+
+                // Fade in
+                completeText.setAlpha(0);
+                this.tweens.add({
+                    targets: completeText,
+                    alpha: 1,
+                    duration: 1000
+                });
+
+                // After 2 seconds, fade out and play cutscene
+                this.time.delayedCall(2000, () => {
+                    this.tweens.add({
+                        targets: completeText,
+                        alpha: 0,
+                        duration: 500,
+                        onComplete: () => {
+                            completeText.destroy();
+                            this.playCutscene();
+                        }
+                    });
+                });
+            }
+            
+            playCutscene() {
+                console.log('Playing output.mp4 cutscene');
+                
+                // Black background
+                this.add.rectangle(400, 300, 800, 600, 0x000000);
+
+                // Try to play video if it loaded
+                if (this.cache.video.exists('output')) {
+                    console.log('output.mp4 exists, playing...');
+                    let video = this.add.video(400, 300, 'output');
+                    video.setOrigin(0.5, 0.5);
+                    video.play(true);
+
+                    // Skip text
+                    let skipText = this.add.text(700, 550, 'Press SPACE to skip', {
+                        fontSize: '18px',
+                        fill: '#ffffff',
+                        stroke: '#000',
+                        strokeThickness: 3
+                    });
+
+                    // When video ends, show final screen
+                    video.on('complete', () => {
+                        console.log('Video complete');
+                        this.showFinalScreen();
+                    });
+
+                    // Handle video errors
+                    video.on('error', () => {
+                        console.log('Video error, skipping to final screen');
+                        this.showFinalScreen();
+                    });
+
+                    // Allow skipping with SPACE
+                    this.input.keyboard.once('keydown-SPACE', () => {
+                        video.stop();
+                        this.showFinalScreen();
+                    });
+
+                    // Auto-skip after 30 seconds if video is too long
+                    this.time.delayedCall(30000, () => {
+                        if (this.scene.isActive('VictoryScene')) {
+                            video.stop();
+                            this.showFinalScreen();
+                        }
+                    });
+                } else {
+                    console.log('output.mp4 not found, skipping to final screen');
+                    // No video, just show final screen
+                    this.time.delayedCall(1000, () => {
+                        this.showFinalScreen();
+                    });
+                }
+            }
+            
+            showFinalScreen() {
+                console.log('Showing final screen');
+                
+                // Clear everything
+                this.children.removeAll();
+                
+                // Crystal cavern background
+                let bg = this.add.graphics();
+                bg.fillGradientStyle(0x1a1a3e, 0x1a1a3e, 0x2a2a5e, 0x3a3a7e, 1);
+                bg.fillRect(0, 0, 800, 600);
+
+                // Starfield
+                for (let i = 0; i < 200; i++) {
+                    let x = Phaser.Math.Between(0, 800);
+                    let y = Phaser.Math.Between(0, 600);
+                    this.add.circle(x, y, Phaser.Math.Between(1, 4), 0xffffff, 0.7);
+                }
+
+                // Victorious Luma
+                let luma = this.add.sprite(400, 250, 'luma');
+                luma.setScale(1);
+
+                // Victory text
+                let victoryText = this.add.text(400, 400, 'CONGRATULATIONS!', {
+                    fontSize: '64px',
+                    fill: '#00ffff',
+                    fontStyle: 'bold',
+                    stroke: '#ff00ff',
+                    strokeThickness: 6
+                }).setOrigin(0.5);
+
+                // Subtitle
+                let subText = this.add.text(400, 470, 'You completed Luma\'s Quest!', {
+                    fontSize: '24px',
+                    fill: '#ffffff',
+                    stroke: '#000',
+                    strokeThickness: 3
+                }).setOrigin(0.5);
+
+                // Try Again button
+                let tryAgainBtn = this.add.text(400, 540, 'TRY AGAIN', {
+                    fontSize: '28px',
+                    fill: '#ffffff',
+                    backgroundColor: '#4a5c8c',
+                    padding: { x: 30, y: 10 }
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                
+                tryAgainBtn.on('pointerover', () => {
+                    tryAgainBtn.setStyle({ fill: '#ffff00' });
+                });
+                tryAgainBtn.on('pointerout', () => {
+                    tryAgainBtn.setStyle({ fill: '#ffffff' });
+                });
+                tryAgainBtn.on('pointerdown', () => {
+                    console.log('Try Again clicked, restarting game');
+                    this.scene.start('StartScreen');
+                });
+            }
+        }
+
+        new Phaser.Game({
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            physics: {
+                default: 'arcade',
+                arcade: { gravity: { y: 0 } }
+            },
+            scene: [StartScreen, Cutscene, Intro, PuzzleGame, LevelTransition, Level2Intro, Level2, VictoryScene]
+        });
+    </script>
+</body>
+</html>
